@@ -1,8 +1,18 @@
 import rentalAxios from './rentalAxios'
 
+// YYYY-MM-DD in local time (backend expects LocalDate)
+const fmt = d => d.toLocaleDateString('en-CA')
+
+const defaultDates = () => {
+  const start = new Date()
+  const end = new Date()
+  end.setDate(end.getDate() + 7)
+  return { startDate: fmt(start), endDate: fmt(end) }
+}
+
 export default {
   // Borrower — submit rental request with dates
-  request: data => rentalAxios.post('/api/rentals/request', data),
+  request: data => rentalAxios.post('/api/rentals/request', { ...defaultDates(), ...data }),
 
   // Borrower — cancel a PENDING request
   cancel: id => rentalAxios.put(`/api/rentals/${id}/cancel`),
