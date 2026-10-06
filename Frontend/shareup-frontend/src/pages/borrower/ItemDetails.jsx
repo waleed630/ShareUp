@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import itemsApi from '../../api/items.api'
 import rentalsApi from '../../api/rentals.api'
 import toast from 'react-hot-toast'
+import RentalDatesModal from '../../components/common/RentalDatesModal'
 
 export default function ItemDetails() {
   const { id } = useParams()
@@ -12,6 +13,7 @@ export default function ItemDetails() {
   const [loading, setLoading] = useState(true)
   // Pending request holding this item — { mine, endDate } or null
   const [held, setHeld] = useState(null)
+  const [pickingDates, setPickingDates] = useState(false)
 
   const loadHeld = async () => {
     const res = await rentalsApi.reservations().catch(() => null)
@@ -35,11 +37,14 @@ export default function ItemDetails() {
     load()
   }, [id])
 
-  const requestRental = async () => {
+  const requestRental = async ({ startDate, endDate }) => {
+    setPickingDates(false)
     try {
       await rentalsApi.request({
         itemId: item.id || item._id,
-        ownerId: item.ownerId
+        ownerId: item.ownerId,
+        startDate,
+        endDate
       })
       toast.success('Rental request sent')
     } catch (err) {
@@ -99,7 +104,7 @@ export default function ItemDetails() {
             </button>
 
             <button
-              onClick={requestRental}
+              onClick={() => setPickingDates(true)}
               disabled={!!held}
               className="bg-black text-white px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -117,6 +122,10 @@ export default function ItemDetails() {
 
         </div>
       </div>
+
+      {pickingDates && (
+        <RentalDatesModal item={item} onCancel={() => setPickingDates(false)} onConfirm={requestRental} />
+      )}
     </div>
   )
 }
