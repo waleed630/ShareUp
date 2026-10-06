@@ -64,6 +64,11 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResponse login(LoginRequest request) {
 
+        // Unknown email gets its own 404 so the login page can point to sign up
+        if (!userRepository.existsByEmail(request.getEmail())) {
+            throw new RuntimeException("Account not found");
+        }
+
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.getEmail(),

@@ -19,8 +19,10 @@ export default function Login() {
       const role = await login(data)
       toast.success('Welcome back!')
       navigate(role === 'OWNER' ? '/owner' : '/borrower')
-    } catch {
-      toast.error('Invalid email or password')
+    } catch (err) {
+      toast.error(err.response?.status === 404
+        ? "Account doesn't exist. Sign up to continue."
+        : 'Invalid email or password')
     } finally {
       setLoading(false)
     }
