@@ -1,14 +1,14 @@
 # Starts ShareUp locally. Secrets are read from ".env" next to this script (see .env.example).
 #
-#   .\start-all.ps1                 all three services + frontend, each in its own window
-#   .\start-all.ps1 rental          only rental-service, in a new window
-#   .\start-all.ps1 rental -Here    only rental-service, in this window
+#   .\start-all.ps1           all three services + frontend, each in its own window
+#   .\start-all.ps1 rental    only rental-service, in this terminal
 
 param(
     [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
     [ValidateSet('auth', 'item', 'rental', 'frontend')]
     [string[]]$Services = @('auth', 'item', 'rental', 'frontend'),
 
+    # no longer needed: a single service always runs in this terminal
     [switch]$Here
 )
 
@@ -100,12 +100,7 @@ if ($missing) {
 
 # ---- start -----------------------------------------------------------------
 
-if ($Here) {
-    if ($Services.Count -ne 1) {
-        Write-Host "-Here runs one service: .\start-all.ps1 rental -Here" -ForegroundColor Red
-        exit 1
-    }
-
+if ($Services.Count -eq 1) {
     $def = $defs[$Services[0]]
     foreach ($key in $def.Env.Keys) {
         $value = $def.Env[$key]
@@ -114,15 +109,15 @@ if ($Here) {
     }
 
     $Host.UI.RawUI.WindowTitle = "ShareUp - $($Services[0])"
-    Set-Location (Join-Path $root $def.Dir)
-    & $def.Run
+    Push-Location (Join-Path $root $def.Dir)
+    try { & $def.Run } finally { Pop-Location }
     return
 }
 
 foreach ($name in $Services) {
     Start-Process powershell -ArgumentList @(
         '-NoExit', '-ExecutionPolicy', 'Bypass',
-        '-File', "`"$PSCommandPath`"", $name, '-Here'
+        '-File', "`"$PSCommandPath`"", $name
     )
     Write-Host "Started $name"
 }
