@@ -28,7 +28,7 @@
 - [Rental Lifecycle](#-rental-lifecycle)
 - [Getting Started](#-getting-started)
 - [Environment Variables](#-environment-variables)
-- [Author](#-author)
+- [Maintainer](#-maintainer)
 
 ---
 
@@ -36,8 +36,8 @@
 
 **ShareUp** is a full-stack peer-to-peer rental platform where users can act as **Owners** (listing items for rent) or **Borrowers** (browsing and requesting items). It features a complete rental lifecycle — from request to approval, return, and rating — backed by a Java/Spring Boot microservices architecture and a React frontend.
 
-- 🚀 **Backend** deployed on [Render](https://render.com)
-- 🌐 **Frontend** deployed on [Vercel](https://vercel.com)
+- 🚀 **Backend** is ready for [Render](https://render.com) (one `Dockerfile` per service)
+- 🌐 **Frontend** is ready for [Vercel](https://vercel.com) (`vercel.json` included)
 
 ---
 
@@ -47,7 +47,7 @@
 - 👥 **Dual Roles** — Separate Owner and Borrower dashboards with role-based access control
 - 📦 **Item Management** — Owners can list items with images (Cloudinary), categories, pricing, and pickup address
 - 🔍 **Browse & Filter** — Borrowers can browse and filter available items by category
-- 📋 **Full Rental Lifecycle** — Request → Approve/Reject → Return (with image proof) → Return Approval
+- 📋 **Full Rental Lifecycle** — Request (with dates) → Approve/Reject → Return (with image proof) → Return Approval → Rating
 - 📧 **Email Notifications** — Gmail SMTP integration for rental status updates
 - 🖼️ **Image Uploads** — Item images and return proof images via Cloudinary
 - 🛡️ **Structured Exception Handling** — Clean error responses across all services
@@ -153,22 +153,26 @@ Orchestrates the full rental lifecycle, ratings, and notifications. Communicates
 | `POST` | `/api/items` | ✅ | Owner | List a new item |
 | `POST` | `/api/items/{id}/image` | ✅ | Owner | Upload item image to Cloudinary |
 | `GET` | `/api/items/owner` | ✅ | Owner | Get owner's own item listings |
-| `PUT` | `/api/items/{id}/rent` | ✅ | Internal | Mark item as rented |
-| `PUT` | `/api/items/{id}/available` | ✅ | Internal | Mark item as available again |
+| `PUT` | `/api/items/{id}/rented` | ❌ | Internal | Mark item as rented |
+| `PUT` | `/api/items/{id}/available` | ❌ | Internal | Mark item as available again |
 
 ### 🔄 Rental Service — `/api/rentals`
 
 | Method | Endpoint | Auth | Role | Description |
 |--------|----------|------|------|-------------|
-| `POST` | `/api/rentals/request` | ✅ | Borrower | Submit a borrow request |
+| `POST` | `/api/rentals/request` | ✅ | Borrower | Submit a borrow request with start and end dates |
+| `PUT` | `/api/rentals/{id}/cancel` | ✅ | Borrower | Cancel a request that is still pending |
 | `PUT` | `/api/rentals/approve/{id}` | ✅ | Owner | Approve a rental request |
 | `PUT` | `/api/rentals/reject/{id}` | ✅ | Owner | Reject a rental request |
 | `POST` | `/api/rentals/{id}/return` | ✅ | Borrower | Submit return with image proof |
 | `PUT` | `/api/rentals/approve-return/{id}` | ✅ | Owner | Approve the return |
+| `POST` | `/api/rentals/{id}/rate` | ✅ | Borrower | Rate the owner of a completed rental (1–10) |
 | `GET` | `/api/rentals/me` | ✅ | Borrower | Get borrower's rental history |
+| `GET` | `/api/rentals/reservations` | ✅ | Any | Items currently held by a pending request |
+| `GET` | `/api/rentals/ratings/me` | ✅ | Any | Ratings received by the logged-in user |
 | `GET` | `/api/rentals/owner` | ✅ | Owner | Get all rental requests for owner's items |
 | `GET` | `/api/rentals/owner/returns` | ✅ | Owner | Get pending return approvals |
-| `GET` | `/api/rentals/{id}/return-image` | ✅ | Owner | View return proof image (redirects to Cloudinary) |
+| `GET` | `/api/rentals/{id}/return-image` | ✅ | Any | View return proof image (redirects to Cloudinary) |
 
 > **Auth header:** `Authorization: Bearer <token>`
 
@@ -189,7 +193,11 @@ Borrower                                   Owner
    │                                          │
    │◄─── PUT /rentals/approve-return/{id} ────│  Status: RETURN_APPROVED
    │                                          │
+   │──── POST /rentals/{id}/rate ────────────►│  Borrower rates the owner
+   │                                          │
 ```
+
+A borrower can cancel a request while it is still `PENDING` (`PUT /rentals/{id}/cancel` → `CANCELLED`).
 
 ---
 
@@ -198,106 +206,110 @@ Borrower                                   Owner
 ### Prerequisites
 
 - Java 17+
-- Maven 3.8+
 - MySQL 8+
 - MongoDB
 - Node.js 18+ & npm
 - Cloudinary account
-- Gmail account (for SMTP)
+- Gmail account (for SMTP) — optional locally, mail failures are ignored
 
-### Backend Setup
+Maven does not need to be installed; each service ships with the Maven wrapper (`mvnw`).
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/your-username/shareup.git
-   cd shareup
-   ```
+### 1. Clone the repository
 
-2. **Configure environment variables** for each service (see [Environment Variables](#-environment-variables))
+```bash
+git clone https://github.com/waleed630/ShareUp.git
+cd ShareUp
+```
 
-3. **Run each service**
-   ```bash
-   # Auth Service
-   cd auth-service
-   mvn spring-boot:run
+### 2. Configure
 
-   # Item Service
-   cd ../item-service
-   mvn spring-boot:run
+Copy `.env.example` to `.env` in the project root and fill in the values (see [Environment Variables](#-environment-variables)). `.env` is git-ignored and must never be committed.
 
-   # Rental Service
-   cd ../rental-service
-   mvn spring-boot:run
-   ```
-
-### Frontend Setup
+Create `Frontend/shareup-frontend/.env` with the service URLs, then install the frontend packages once:
 
 ```bash
 cd Frontend/shareup-frontend
 npm install
-npm run dev
 ```
 
-The frontend runs on `http://localhost:5173` by default.
+### 3. Run (Windows PowerShell)
+
+From the project root:
+
+```powershell
+.\start-all.ps1            # all three services + frontend, each in its own window
+.\start-all.ps1 rental     # one of: auth, item, rental, frontend — in the current terminal
+```
+
+The script reads `.env`, sets the variables each service needs and starts it. The frontend runs on `http://localhost:5173`.
+
+### Running a service by hand
+
+Set the variables listed below in your shell, then:
+
+```bash
+cd auth-service        # or item-service / rental-service
+./mvnw spring-boot:run
+```
 
 ### Docker (per service)
 
-Each service has its own `Dockerfile`:
+Each service has its own `Dockerfile`. Pass that service's variables with `-e` or an env file:
+
 ```bash
 cd auth-service
 docker build -t shareup-auth .
-docker run -p 8080:8080 --env-file .env shareup-auth
+docker run -p 8080:8080 --env-file auth.env shareup-auth
 ```
 
 ---
 
 ## ⚙️ Environment Variables
 
-### `auth-service`
+### Root `.env` (read by `start-all.ps1`)
+
 ```properties
-PORT=8080
+JWT_SECRET=your_jwt_secret_key          # shared by all three services
+
 DATABASE_URL=jdbc:mysql://localhost:3306/shareup_auth
 DB_USERNAME=your_db_user
 DB_PASSWORD=your_db_password
-JWT_SECRET=your_jwt_secret_key
-```
 
-### `item-service`
-```properties
-PORT=8081
-MONGODB_URI=mongodb://localhost:27017/shareup_items
-JWT_SECRET=your_jwt_secret_key   # Must match auth-service
-```
+ITEM_MONGODB_URI=mongodb://localhost:27017/shareup_items
+RENTAL_MONGODB_URI=mongodb://localhost:27017/shareup_rentals
 
-### `rental-service`
-```properties
-PORT=8082
-MONGODB_URI=mongodb://localhost:27017/shareup_rentals
-JWT_SECRET=your_jwt_secret_key   # Must match auth-service
-AUTH_SERVICE_URL=http://localhost:8080
-ITEM_SERVICE_URL=http://localhost:8081
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
+
 MAIL_USERNAME=your_gmail@gmail.com
 MAIL_PASSWORD=your_app_password
 ```
 
-### `Frontend/.env`
+### What each service reads
+
+| Service | Variables |
+|---------|-----------|
+| `auth-service` (8080) | `PORT`, `DATABASE_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET` |
+| `item-service` (8081) | `PORT`, `MONGODB_URI`, `JWT_SECRET`, `CLOUDINARY_*` |
+| `rental-service` (8082) | `PORT`, `MONGODB_URI`, `JWT_SECRET`, `AUTH_SERVICE_URL`, `ITEM_SERVICE_URL`, `CLOUDINARY_*`, `MAIL_USERNAME`, `MAIL_PASSWORD` |
+
+`JWT_SECRET` must be identical in all three services. `start-all.ps1` fills in `PORT`, the service URLs and each service's `MONGODB_URI` from the root `.env`.
+
+### `Frontend/shareup-frontend/.env`
+
 ```env
-VITE_AUTH_SERVICE_URL=http://localhost:8080
-VITE_ITEM_SERVICE_URL=http://localhost:8081
-VITE_RENTAL_SERVICE_URL=http://localhost:8082
+VITE_AUTH_API=http://localhost:8080
+VITE_ITEM_API=http://localhost:8081
+VITE_RENTAL_API=http://localhost:8082
 ```
 
 ---
 
-## 👤 Author
+## 👤 Maintainer
 
-**Harsh**
-- 📧 [h664363@gmail.com](mailto:h664363@gmail.com)
-- 📞 +91-9354530598
-- 🔗 [LinkedIn](https://www.linkedin.com/in/harsh-92344722b/) | [GitHub](https://github.com/Harsh5453/)
+**Muhammad Waleed Bin Latif**
+- 🔗 [GitHub](https://github.com/waleed630)
 
 ---
 
