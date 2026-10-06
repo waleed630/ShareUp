@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import rentalsApi from '../../api/rentals.api'
+import rentalsApi, { RENTALS_CHANGED, RENTAL_APPROVED } from '../../api/rentals.api'
 import itemsApi from '../../api/items.api'
+import useAuth from '../../hooks/useAuth'
+import { markApprovalsSeen } from '../../utils/seenApprovals'
 import toast from 'react-hot-toast'
 import StatusBadge from '../../components/ui/StatusBadge'
 import Empty from '../../components/ui/Empty'
@@ -10,7 +12,8 @@ const formatDate = iso => {
   return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-export default function MyRentals() {
+export default function MyRentals({ rated = {}, onRate }) {
+  const { user } = useAuth()
   const [rentals, setRentals] = useState([])
   const [items, setItems]     = useState({})
   const [files, setFiles]     = useState({})
@@ -22,6 +25,9 @@ export default function MyRentals() {
       const res  = await rentalsApi.myRentals()
       const list = Array.isArray(res.data) ? res.data : []
       setRentals(list)
+
+      // The approvals are on screen now — clear the sidebar dot
+      if (markApprovalsSeen(user?.userId, list)) window.dispatchEvent(new Event(RENTALS_CHANGED))
 
       // ✅ Parallel fetch — all items at once
       const uniqueIds = [...new Set(list.map(r => r.itemId))]
@@ -36,7 +42,12 @@ export default function MyRentals() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    // an approval arrived while this page was open
+    window.addEventListener(RENTAL_APPROVED, load)
+    return () => window.removeEventListener(RENTAL_APPROVED, load)
+  }, [])
 
   const sendReturnRequest = async rentalId => {
     const file = files[rentalId]
@@ -131,6 +142,7 @@ export default function MyRentals() {
           border-radius: 8px; padding: 10px 12px;
           font-size: 0.82rem; color: #166534;
         }
+        .rated-msg { margin-top: 6px; font-weight: 600; }
         .return-pending-msg { font-size: 0.82rem; color: #3b82f6; font-style: italic; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
       `}</style>
@@ -141,6 +153,7 @@ export default function MyRentals() {
         <div className="rental-grid">
           {rentals.map(r => {
             const item = items[r.itemId]
+            const myRating = rated[r.id] ?? r.rating
 
             return (
               <div key={r.id} className="rental-card">
@@ -203,7 +216,16 @@ export default function MyRentals() {
 
                 {/* RETURN APPROVED */}
                 {r.status === 'RETURN_APPROVED' && (
-                  <div className="completed-box">✅ Rental completed successfully!</div>
+                  <div className="completed-box">
+                    <div>✅ Rental completed successfully!</div>
+                    {myRating != null ? (
+                      <div className="rated-msg">⭐ You rated the owner {myRating}/10</div>
+                    ) : onRate && (
+                      <button className="btn-return" style={{ marginTop: 8 }} onClick={() => onRate(r, item?.name)}>
+                        Rate Owner
+                      </button>
+                    )}
+                  </div>
                 )}
 
                 {/* CANCELLED */}

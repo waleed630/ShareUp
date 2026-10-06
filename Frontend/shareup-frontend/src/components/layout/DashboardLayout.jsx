@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
 import Sidebar from './Sidebar'
 import useAuth from '../../hooks/useAuth'
+import rentalsApi, { RENTALS_CHANGED } from '../../api/rentals.api'
 
 export default function DashboardLayout({ children }) {
   const [open, setOpen] = useState(false)
+  const [hasPending, setHasPending] = useState(false)
+  const [hasReturns, setHasReturns] = useState(false)
   const { user } = useAuth()
 
   const now = new Date()
@@ -17,6 +20,34 @@ export default function DashboardLayout({ children }) {
     }
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  // Red dots on "Rental Requests" / "Return Approvals" while anything is waiting for the owner
+  useEffect(() => {
+    let cancelled = false
+
+    const check = async () => {
+      try {
+        const res  = await rentalsApi.getOwnerRequests()
+        const list = Array.isArray(res.data) ? res.data : []
+        if (cancelled) return
+        setHasPending(list.some(r => r.status === 'PENDING'))
+        setHasReturns(list.some(r => r.status === 'RETURN_REQUESTED'))
+      } catch {
+        // the dot is optional; Rental Requests reports load errors itself
+      }
+    }
+
+    check()
+    const timer = setInterval(check, 20000)
+    window.addEventListener('focus', check)
+    window.addEventListener(RENTALS_CHANGED, check)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+      window.removeEventListener('focus', check)
+      window.removeEventListener(RENTALS_CHANGED, check)
+    }
   }, [])
 
   // Prevent body scroll when sidebar open on mobile
@@ -102,8 +133,17 @@ export default function DashboardLayout({ children }) {
           color: #374151;
           transition: background 0.2s;
           flex-shrink: 0;
+          position: relative;
         }
         .dl-hamburger:hover { background: #f3f4f6; }
+        .dl-hamburger-dot {
+          position: absolute;
+          top: 5px; right: 4px;
+          width: 9px; height: 9px;
+          border-radius: 50%;
+          background: #ef4444;
+          border: 2px solid white;
+        }
 
         .dl-greeting {
           display: flex;
@@ -192,7 +232,7 @@ export default function DashboardLayout({ children }) {
 
         {/* Desktop sidebar — always visible */}
         <div className="dl-sidebar-desktop">
-          <Sidebar />
+          <Sidebar hasPendingRequests={hasPending} hasPendingReturns={hasReturns} />
         </div>
 
         {/* Mobile overlay */}
@@ -203,7 +243,7 @@ export default function DashboardLayout({ children }) {
 
         {/* Mobile sidebar — slides in */}
         <div className={`dl-sidebar-mobile ${open ? 'is-open' : ''}`}>
-          <Sidebar onClose={() => setOpen(false)} />
+          <Sidebar onClose={() => setOpen(false)} hasPendingRequests={hasPending} hasPendingReturns={hasReturns} />
         </div>
 
         {/* Main content */}
@@ -223,6 +263,7 @@ export default function DashboardLayout({ children }) {
                   <line x1="3" y1="12" x2="21" y2="12"/>
                   <line x1="3" y1="18" x2="21" y2="18"/>
                 </svg>
+                {(hasPending || hasReturns) && <span className="dl-hamburger-dot" />}
               </button>
 
               <div className="dl-greeting">

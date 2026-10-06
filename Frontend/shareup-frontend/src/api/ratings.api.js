@@ -1,7 +1,9 @@
-import axios from './axios'
-
-const base = import.meta.env.VITE_RENTAL_API
+import rentalAxios from './rentalAxios'
 
 export default {
-  getMyRatings: () => axios.get(`${base}/api/ratings/me`)
+  // Borrower — rate the owner of a completed rental
+  rate: (rentalId, data) => rentalAxios.post(`/api/rentals/${rentalId}/rate`, data),
+
+  // Ratings received by the logged-in user
+  getMyRatings: () => rentalAxios.get('/api/rentals/ratings/me')
 }

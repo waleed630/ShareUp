@@ -10,6 +10,12 @@ const defaultDates = () => {
   return { startDate: fmt(start), endDate: fmt(end) }
 }
 
+// Fired on window after the owner approves / rejects a request or a return, so the sidebar dots update at once
+export const RENTALS_CHANGED = 'rentals:changed'
+
+// Fired on window when the borrower has an approved rental they have not seen yet
+export const RENTAL_APPROVED = 'rentals:approved'
+
 export default {
   // Borrower — submit rental request with dates
   request: data => rentalAxios.post('/api/rentals/request', { ...defaultDates(), ...data }),
@@ -20,6 +26,9 @@ export default {
   // Owner — approve / reject
   approve: id => rentalAxios.put(`/api/rentals/approve/${id}`),
   reject:  id => rentalAxios.put(`/api/rentals/reject/${id}`),
+
+  // Items held by a pending request — [{ itemId, startDate, endDate, mine }]
+  reservations: () => rentalAxios.get('/api/rentals/reservations'),
 
   // Borrower — my rentals list
   myRentals: () => rentalAxios.get('/api/rentals/me'),

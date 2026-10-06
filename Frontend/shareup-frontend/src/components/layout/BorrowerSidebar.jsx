@@ -7,7 +7,7 @@ const links = [
   { to: '/borrower/rentals', label: 'My Rentals',   icon: <FaClipboardList /> },
 ]
 
-export default function BorrowerSidebar({ onClose }) {
+export default function BorrowerSidebar({ onClose, hasNewApproval = false }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
 
@@ -68,6 +68,11 @@ export default function BorrowerSidebar({ onClose }) {
           content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
           width: 3px; height: 60%; background: #e85d26; border-radius: 0 3px 3px 0;
         }
+        .bsb-dot {
+          width: 9px; height: 9px; border-radius: 50%;
+          background: #ef4444; margin-left: auto; flex-shrink: 0;
+          box-shadow: 0 0 0 3px rgba(239,68,68,0.22);
+        }
         .bsb-divider { height: 1px; background: rgba(255,255,255,0.07); margin: 10px 10px; }
         .bsb-user-card {
           background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
@@ -126,6 +131,9 @@ export default function BorrowerSidebar({ onClose }) {
             >
               <div className="bsb-icon">{link.icon}</div>
               <span className="bsb-label">{link.label}</span>
+              {hasNewApproval && link.to === '/borrower/rentals' && (
+                <span className="bsb-dot" title="Rental approved" />
+              )}
             </NavLink>
           ))}
         </nav>

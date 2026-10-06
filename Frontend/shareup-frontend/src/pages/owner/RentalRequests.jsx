@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import rentalsApi from '../../api/rentals.api'
+import rentalsApi, { RENTALS_CHANGED } from '../../api/rentals.api'
 import itemsApi from '../../api/items.api'
 import toast from 'react-hot-toast'
 import StatusBadge from '../../components/ui/StatusBadge'
@@ -42,10 +42,13 @@ export default function RentalRequests() {
     try {
       await rentalsApi.approve(id)
       toast.success('Request approved')
+      // approving one request auto-rejects the others for the same item
+      load()
     } catch {
       toast.error('Approval failed')
       load()
     }
+    window.dispatchEvent(new Event(RENTALS_CHANGED))
   }
 
   const reject = async id => {
@@ -57,6 +60,7 @@ export default function RentalRequests() {
       toast.error('Reject failed')
       load()
     }
+    window.dispatchEvent(new Event(RENTALS_CHANGED))
   }
 
   if (loading) return (

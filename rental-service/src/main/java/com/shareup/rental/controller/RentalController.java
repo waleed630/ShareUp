@@ -1,6 +1,9 @@
 package com.shareup.rental.controller;
 
 import com.shareup.rental.dto.BorrowRequestDTO;
+import com.shareup.rental.dto.RatingRequestDTO;
+import com.shareup.rental.dto.ReservationDTO;
+import com.shareup.rental.model.Rating;
 import com.shareup.rental.model.RentalRequest;
 import com.shareup.rental.security.UserContext;
 import com.shareup.rental.service.RentalService;
@@ -130,6 +133,29 @@ public class RentalController {
         );
     }
 
+    // ================= RATE OWNER (borrower) =================
+
+    @PostMapping("/{id}/rate")
+    public ResponseEntity<RentalRequest> rateRental(
+            @PathVariable String id,
+            @Valid @RequestBody RatingRequestDTO dto,
+            Authentication authentication) {
+
+        if (authentication == null) return ResponseEntity.status(401).build();
+
+        return ResponseEntity.ok(
+                rentalService.rateRental(id, userId(authentication), dto)
+        );
+    }
+
+    // ================= RATINGS RECEIVED =================
+
+    @GetMapping("/ratings/me")
+    public ResponseEntity<List<Rating>> myRatings(Authentication authentication) {
+        if (authentication == null) return ResponseEntity.status(401).build();
+        return ResponseEntity.ok(rentalService.getRatingsForUser(userId(authentication)));
+    }
+
     // ================= OWNER DASHBOARD =================
 
     @GetMapping("/owner")
@@ -144,6 +170,14 @@ public class RentalController {
     public ResponseEntity<List<RentalRequest>> myRentals(Authentication authentication) {
         if (authentication == null) return ResponseEntity.status(401).build();
         return ResponseEntity.ok(rentalService.getRentalsForBorrower(userId(authentication)));
+    }
+
+    // ================= RESERVED ITEMS (browse page) =================
+
+    @GetMapping("/reservations")
+    public ResponseEntity<List<ReservationDTO>> reservations(Authentication authentication) {
+        if (authentication == null) return ResponseEntity.status(401).build();
+        return ResponseEntity.ok(rentalService.getReservations(userId(authentication)));
     }
 
     // ================= OWNER RETURN REQUESTS =================

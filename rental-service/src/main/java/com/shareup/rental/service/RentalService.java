@@ -4,6 +4,8 @@ import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import com.shareup.rental.dto.BorrowRequestDTO;
 import com.shareup.rental.dto.ItemResponse;
+import com.shareup.rental.dto.RatingRequestDTO;
+import com.shareup.rental.dto.ReservationDTO;
 import com.shareup.rental.model.Rating;
 import com.shareup.rental.model.RentalRequest;
 import com.shareup.rental.model.RentalStatus;
@@ -17,7 +19,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -67,6 +72,19 @@ public class RentalService {
         if (dto.getEndDate() != null && dto.getStartDate() != null
                 && !dto.getEndDate().isAfter(dto.getStartDate())) {
             throw new RuntimeException("endDate must be after startDate");
+        }
+
+        // An item with a pending request is reserved until the owner approves or rejects it
+        boolean reserved = false;
+        for (RentalRequest pending : rentalRepository.findByItemIdAndStatus(dto.getItemId(), RentalStatus.PENDING)) {
+            if (!isActiveReservation(pending)) continue;
+            if (borrowerId.equals(pending.getBorrowerId())) {
+                throw new RuntimeException("You have already requested this item");
+            }
+            reserved = true;
+        }
+        if (reserved) {
+            throw new RuntimeException("This item is already reserved by another request");
         }
 
         // ✅ Fetch borrower address from auth-service (not in JWT)
@@ -381,9 +399,86 @@ public class RentalService {
         return rentalRepository.findByOwnerIdAndStatus(ownerId, RentalStatus.RETURN_REQUESTED);
     }
 
+    /**
+     * Items currently held by a pending request, one entry per item.
+     * The caller's own request wins over someone else's for the same item.
+     */
+    public List<ReservationDTO> getReservations(Long userId) {
+        Map<String, ReservationDTO> byItem = new LinkedHashMap<>();
+
+        for (RentalRequest r : rentalRepository.findByStatus(RentalStatus.PENDING)) {
+            if (!isActiveReservation(r)) continue;
+
+            boolean mine = userId.equals(r.getBorrowerId());
+            ReservationDTO current = byItem.get(r.getItemId());
+            if (current == null || (mine && !current.mine())) {
+                byItem.put(r.getItemId(),
+                        new ReservationDTO(r.getItemId(), r.getStartDate(), r.getEndDate(), mine));
+            }
+        }
+
+        return new ArrayList<>(byItem.values());
+    }
+
+    // A pending request stops holding the item once its end date has passed
+    private boolean isActiveReservation(RentalRequest r) {
+        return r.getEndDate() == null || !r.getEndDate().isBefore(LocalDate.now());
+    }
+
     public RentalRequest getById(String id) {
         return rentalRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Rental not found: " + id));
+    }
+
+    // ============================================================
+    // ================= RATINGS ==================================
+    // ============================================================
+
+    /**
+     * Borrower rates the owner of a completed rental.
+     * The owner id is taken from the rental record, never from the client.
+     */
+    public RentalRequest rateRental(String rentalId, Long borrowerId, RatingRequestDTO dto) {
+
+        RentalRequest req = rentalRepository.findById(rentalId)
+                .orElseThrow(() -> new RuntimeException("Rental not found: " + rentalId));
+
+        if (!borrowerId.equals(req.getBorrowerId())) {
+            throw new RuntimeException("Unauthorized");
+        }
+
+        if (req.getStatus() != RentalStatus.RETURN_APPROVED) {
+            throw new RuntimeException("Cannot rate a rental that is not completed");
+        }
+
+        if (dto.getStars() == null || dto.getStars() < 1 || dto.getStars() > 10) {
+            throw new RuntimeException("Invalid stars: must be between 1 and 10");
+        }
+
+        if (req.getRating() != null
+                || ratingRepository.findByRentalIdAndFromUserId(rentalId, borrowerId.toString()).isPresent()) {
+            throw new RuntimeException("You have already rated this rental");
+        }
+
+        String review = dto.getReview() != null && !dto.getReview().isBlank()
+                ? dto.getReview().trim()
+                : null;
+
+        Rating rating = new Rating();
+        rating.setRentalId(rentalId);
+        rating.setFromUserId(borrowerId.toString());
+        rating.setToUserId(req.getOwnerId().toString());
+        rating.setStars(dto.getStars());
+        rating.setReview(review);
+        rating.setCreatedAt(LocalDateTime.now());
+        ratingRepository.save(rating);
+
+        req.setRating(dto.getStars());
+        req.setFeedback(review);
+
+        log.info("Rental rated id={} borrowerId={} ownerId={} stars={}",
+                rentalId, borrowerId, req.getOwnerId(), dto.getStars());
+        return rentalRepository.save(req);
     }
 
     public List<Rating> getRatingsForUser(Long userId) {

@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react'
 import BorrowerSidebar from './BorrowerSidebar'
 import useAuth from '../../hooks/useAuth'
+import rentalsApi, { RENTALS_CHANGED, RENTAL_APPROVED } from '../../api/rentals.api'
+import { hasUnseenApproval } from '../../utils/seenApprovals'
 
 export default function BorrowerLayout({ children }) {
   const [open, setOpen] = useState(false)
+  const [hasNewApproval, setHasNewApproval] = useState(false)
   const { user } = useAuth()
+  const userId = user?.userId
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
@@ -14,6 +18,36 @@ export default function BorrowerLayout({ children }) {
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [])
+
+  // Red dot on "My Rentals" while an approved rental has not been seen there yet
+  useEffect(() => {
+    let cancelled = false
+
+    const check = async () => {
+      try {
+        const res    = await rentalsApi.myRentals()
+        const list   = Array.isArray(res.data) ? res.data : []
+        const unseen = hasUnseenApproval(userId, list)
+        if (cancelled) return
+        setHasNewApproval(unseen)
+        // lets an open My Rentals page reload, which marks the approval as seen
+        if (unseen) window.dispatchEvent(new Event(RENTAL_APPROVED))
+      } catch {
+        // the dot is optional; My Rentals reports load errors itself
+      }
+    }
+
+    check()
+    const timer = setInterval(check, 20000)
+    window.addEventListener('focus', check)
+    window.addEventListener(RENTALS_CHANGED, check)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+      window.removeEventListener('focus', check)
+      window.removeEventListener(RENTALS_CHANGED, check)
+    }
+  }, [userId])
 
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : ''
@@ -87,11 +121,11 @@ export default function BorrowerLayout({ children }) {
       `}</style>
 
       <div className="bl-root">
-        <div className="bl-sidebar-desktop"><BorrowerSidebar /></div>
+        <div className="bl-sidebar-desktop"><BorrowerSidebar hasNewApproval={hasNewApproval} /></div>
 
         <div className={`bl-overlay ${open ? 'is-open' : ''}`} onClick={() => setOpen(false)} />
         <div className={`bl-sidebar-mobile ${open ? 'is-open' : ''}`}>
-          <BorrowerSidebar onClose={() => setOpen(false)} />
+          <BorrowerSidebar onClose={() => setOpen(false)} hasNewApproval={hasNewApproval} />
         </div>
 
         <div className="bl-content">

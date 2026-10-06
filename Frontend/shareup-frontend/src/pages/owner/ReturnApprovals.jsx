@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import rentalsApi from '../../api/rentals.api'
+import rentalsApi, { RENTALS_CHANGED } from '../../api/rentals.api'
 import itemsApi from '../../api/items.api'
 import toast from 'react-hot-toast'
 import Empty from '../../components/ui/Empty'
@@ -44,6 +44,7 @@ export default function ReturnApprovals() {
       toast.error('Approval failed')
       load()
     }
+    window.dispatchEvent(new Event(RENTALS_CHANGED))
   }
 
   if (loading) return (

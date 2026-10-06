@@ -20,4 +20,7 @@ public interface RentalRepository extends MongoRepository<RentalRequest, String>
     List<RentalRequest> findByItemIdAndStatus(String itemId, RentalStatus status);
 
     List<RentalRequest> findByOwnerIdAndStatus(Long ownerId, RentalStatus status);
+
+    // Browse page – items held by a pending request
+    List<RentalRequest> findByStatus(RentalStatus status);
 }

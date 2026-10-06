@@ -1,5 +1,10 @@
 package com.shareup.rental.dto;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
@@ -9,10 +14,11 @@ import lombok.Setter;
 @Setter
 public class RatingRequestDTO {
 
-    private String rentalId;
-    private String toUserId;
-    private int stars;
-    private String review;
+    @NotNull(message = "stars is required")
+    @Min(value = 1, message = "stars must be at least 1")
+    @Max(value = 10, message = "stars must be at most 10")
+    private Integer stars;
 
-    // getters & setters
+    @Size(max = 1000, message = "review must be at most 1000 characters")
+    private String review;
 }

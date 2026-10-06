@@ -10,7 +10,7 @@ export default function Ratings() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await ratingsApi.myRatings()
+        const res = await ratingsApi.getMyRatings()
         setRatings(Array.isArray(res.data) ? res.data : [])
       } catch (err) {
         console.error(err)

@@ -50,6 +50,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/rentals/*/return")
                     .hasAuthority("ROLE_BORROWER")
 
+                .requestMatchers(HttpMethod.POST, "/api/rentals/*/rate")
+                    .hasAuthority("ROLE_BORROWER")
+
                 .requestMatchers(HttpMethod.GET, "/api/rentals/me")
                     .hasAuthority("ROLE_BORROWER")
 

@@ -9,8 +9,14 @@ const CATEGORIES = ['All', 'Electronics', 'Furniture', 'Kitchen Appliances', 'Ga
 
 const today = new Date().toISOString().split('T')[0]
 
+const formatDate = iso => {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
 export default function BrowseItems() {
   const [items, setItems]             = useState([])
+  const [reservations, setReservations] = useState({})
   const [loading, setLoading]         = useState(true)
   const [category, setCategory]       = useState('All')
   const [search, setSearch]           = useState('')
@@ -23,10 +29,18 @@ export default function BrowseItems() {
   //  Extracted to reusable function so we can call it after a request too
   const loadItems = useCallback(async () => {
     try {
-      const res = await itemsApi.getAll()
+      const [res, held] = await Promise.all([
+        itemsApi.getAll(),
+        rentalsApi.reservations().catch(() => null),
+      ])
       const all = Array.isArray(res.data) ? res.data : []
       //  Only show AVAILABLE items — filter out RENTED ones
       setItems(all.filter(i => !i.status || i.status === 'AVAILABLE'))
+
+      // Items with a pending request: "Requested" for me, "Reserved" for everyone else
+      const map = {}
+      if (Array.isArray(held?.data)) held.data.forEach(r => { map[r.itemId] = r })
+      setReservations(map)
     } catch (err) {
       console.error(err)
       toast.error('Failed to load items')
@@ -83,7 +97,9 @@ export default function BrowseItems() {
       await loadItems()
     } catch (err) {
       console.error(err)
-      toast.error('Request failed. Please try again.')
+      toast.error(err.response?.data?.message || 'Request failed. Please try again.')
+      // Someone else may have reserved it in the meantime
+      await loadItems()
     } finally {
       setRequesting(null)
     }
@@ -147,6 +163,9 @@ export default function BrowseItems() {
         .btn-request { padding: 6px 14px; border-radius: 7px; font-size: 0.78rem; font-weight: 600; border: none; background: #111; color: white; cursor: pointer; transition: all 0.18s; font-family: 'DM Sans', sans-serif; }
         .btn-request:hover:not(:disabled) { background: #e85d26; }
         .btn-request:disabled { opacity: 0.5; cursor: not-allowed; }
+        .item-held { margin-top: 8px; font-size: 0.76rem; color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 6px 10px; }
+        .item-held strong { color: #78350f; }
+        .item-held.mine { color: #1e40af; background: #eff6ff; border-color: #bfdbfe; }
 
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
         .modal-box { background: white; border-radius: 20px; padding: 28px; width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
@@ -209,7 +228,8 @@ export default function BrowseItems() {
         ) : (
           <div className="items-grid">
             {filtered.map(item => {
-              const id = item.id || item._id
+              const id   = item.id || item._id
+              const held = reservations[id]
               return (
                 <div key={id} className="item-card">
                   <div className="item-card-img-wrap">
@@ -234,13 +254,20 @@ export default function BrowseItems() {
                         </button>
                         <button
                           className="btn-request"
-                          disabled={requesting === id}
+                          disabled={requesting === id || !!held}
                           onClick={() => openDateModal(item)}
                         >
-                          {requesting === id ? 'Sending...' : 'Request'}
+                          {requesting === id ? 'Sending...' : held?.mine ? 'Requested' : held ? 'Reserved' : 'Request'}
                         </button>
                       </div>
                     </div>
+                    {held && (
+                      <div className={`item-held ${held.mine ? 'mine' : ''}`}>
+                        {held.mine
+                          ? <>⏳ Waiting for owner approval</>
+                          : <>🔒 Reserved · Expected until <strong>{formatDate(held.endDate)}</strong></>}
+                      </div>
+                    )}
                   </div>
                 </div>
               )

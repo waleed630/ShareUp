@@ -10,12 +10,21 @@ export default function ItemDetails() {
 
   const [item, setItem] = useState(null)
   const [loading, setLoading] = useState(true)
+  // Pending request holding this item — { mine, endDate } or null
+  const [held, setHeld] = useState(null)
+
+  const loadHeld = async () => {
+    const res = await rentalsApi.reservations().catch(() => null)
+    const list = Array.isArray(res?.data) ? res.data : []
+    setHeld(list.find(r => r.itemId === id) || null)
+  }
 
   useEffect(() => {
     const load = async () => {
       try {
         const res = await itemsApi.getById(id)
         setItem(res.data)
+        await loadHeld()
       } catch {
         toast.error('Failed to load item')
       } finally {
@@ -33,9 +42,10 @@ export default function ItemDetails() {
         ownerId: item.ownerId
       })
       toast.success('Rental request sent')
-    } catch {
-      toast.error('Request failed')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Request failed')
     }
+    loadHeld()
   }
 
   if (loading) return <p>Loading...</p>
@@ -90,11 +100,20 @@ export default function ItemDetails() {
 
             <button
               onClick={requestRental}
-              className="bg-black text-white px-4 py-2 rounded"
+              disabled={!!held}
+              className="bg-black text-white px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Request Rental
+              {held?.mine ? 'Requested' : held ? 'Reserved' : 'Request Rental'}
             </button>
           </div>
+
+          {held && (
+            <p className="text-sm text-amber-700">
+              {held.mine
+                ? 'Waiting for owner approval.'
+                : `Reserved · Expected until ${held.endDate ? new Date(held.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}`}
+            </p>
+          )}
 
         </div>
       </div>

@@ -9,7 +9,7 @@ const navItems = [
   { to: '/owner/returns',  label: 'Return Approvals', icon: <FaUndo /> },
 ]
 
-export default function Sidebar({ onClose }) {
+export default function Sidebar({ onClose, hasPendingRequests = false, hasPendingReturns = false }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
 
@@ -110,6 +110,11 @@ export default function Sidebar({ onClose }) {
           width: 3px; height: 60%; background: #e85d26;
           border-radius: 0 3px 3px 0;
         }
+        .sb-dot {
+          width: 9px; height: 9px; border-radius: 50%;
+          background: #ef4444; margin-left: auto; flex-shrink: 0;
+          box-shadow: 0 0 0 3px rgba(239,68,68,0.22);
+        }
         .sb-divider { height: 1px; background: rgba(255,255,255,0.07); margin: 10px 10px; }
         .sb-user-card {
           background: rgba(255,255,255,0.05);
@@ -174,6 +179,12 @@ export default function Sidebar({ onClose }) {
             >
               <div className="sb-icon">{link.icon}</div>
               <span className="sb-label">{link.label}</span>
+              {hasPendingRequests && link.to === '/owner/requests' && (
+                <span className="sb-dot" title="New rental request" />
+              )}
+              {hasPendingReturns && link.to === '/owner/returns' && (
+                <span className="sb-dot" title="New return request" />
+              )}
             </NavLink>
           ))}
         </nav>
