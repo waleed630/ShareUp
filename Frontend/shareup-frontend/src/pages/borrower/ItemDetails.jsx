@@ -78,7 +78,7 @@ export default function ItemDetails() {
 
           <div className="space-y-2 text-sm">
             <div>
-              <b>Price:</b> ₹{item.price}
+              <b>Price:</b> PKR {item.price}
             </div>
 
             <div>
@@ -111,7 +111,7 @@ export default function ItemDetails() {
             <p className="text-sm text-amber-700">
               {held.mine
                 ? 'Waiting for owner approval.'
-                : `Reserved · Expected until ${held.endDate ? new Date(held.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}`}
+                : `Reserved · Expected until ${held.endDate ? new Date(held.endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}`}
             </p>
           )}
 

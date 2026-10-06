@@ -59,7 +59,7 @@ const requestRental = async () => {
         <div className="space-y-3">
           <h1 className="text-3xl font-bold">{item.name}</h1>
           <p>{item.description}</p>
-          <p className="font-semibold">₹ {item.price} / day</p>
+          <p className="font-semibold">PKR {item.price} / day</p>
 
           <div className="bg-gray-100 p-3 rounded">
             <p className="text-sm text-gray-500">Pickup Address</p>

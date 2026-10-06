@@ -173,7 +173,7 @@ export default function ShareUp() {
               <div className="card" key={item.id}>
                 <h3>{item.name}</h3>
                 <p className="category">{item.category}</p>
-                <p className="price">₹{item.price} / day</p>
+                <p className="price">PKR {item.price} / day</p>
 
                 <button
                   className="primary full"

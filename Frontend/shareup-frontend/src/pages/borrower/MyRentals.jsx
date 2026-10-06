@@ -9,7 +9,7 @@ import Empty from '../../components/ui/Empty'
 
 const formatDate = iso => {
   if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 export default function MyRentals({ rated = {}, onRate }) {

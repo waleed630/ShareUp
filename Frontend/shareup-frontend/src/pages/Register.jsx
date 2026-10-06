@@ -79,12 +79,12 @@ export default function Register() {
             <div className="rrow">
               <div className="rf">
                 <label>Full Name *</label>
-                <input {...register('name')} placeholder="Harsh Aggarwal" />
+                <input {...register('name')} placeholder="Waleed" />
                 {errors.name && <div className="re">{errors.name.message}</div>}
               </div>
               <div className="rf">
                 <label>Phone</label>
-                <input {...register('phone')} placeholder="+91 9876543210" />
+                <input {...register('phone')} placeholder="+92 1234567890" />
               </div>
             </div>
 
@@ -107,7 +107,7 @@ export default function Register() {
               <label>Address</label>
               <textarea
                 {...register('address')}
-                placeholder="e.g. Sector 18, Noida, Uttar Pradesh — 201301"
+                placeholder="e.g. House 12, Block B, Gulberg, Lahore — 54000"
               />
               <div className="field-hint">Shown to owners when your rental is approved</div>
             </div>

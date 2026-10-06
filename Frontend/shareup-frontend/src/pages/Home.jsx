@@ -235,7 +235,7 @@ export default function Home() {
         {/* ── HERO ── */}
         <section className="hero">
           <div className="hero-inner">
-            <div className="hero-badge">India's Peer-to-Peer Rental Platform</div>
+            <div className="hero-badge">Pakistan's Peer-to-Peer Rental Platform</div>
             <h1 className="hero-title">
               Rent anything,<br />
               from <span>people nearby.</span>
@@ -253,7 +253,7 @@ export default function Home() {
         {/* ── STATS ── */}
         <section className="stats">
           <div className="stats-inner">
-            {[['100+','Items Listed'],['50+','Active Users'],['98%','Happy Renters'],['₹0','Listing Fee']].map(([v,l]) => (
+            {[['100+','Items Listed'],['50+','Active Users'],['98%','Happy Renters'],['PKR 0','Listing Fee']].map(([v,l]) => (
               <div key={l} className="stat">
                 <div className="stat-val">{v}</div>
                 <div className="stat-label">{l}</div>
@@ -333,7 +333,7 @@ export default function Home() {
                       alt={item.name}
                       onError={e => (e.currentTarget.src = '/placeholder.png')}
                     />
-                    <span className="icard-price">₹{item.price}/day</span>
+                    <span className="icard-price">PKR {item.price}/day</span>
                     {item.category && <span className="icard-cat">{item.category}</span>}
                   </div>
                   <div className="icard-body">

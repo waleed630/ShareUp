@@ -27,7 +27,7 @@ export default function ItemCard({ item, onDelete }) {
 
         {/* Price */}
         <span className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-          ₹{item.price}
+          PKR {item.price}
         </span>
 
         {/* Delete button (only for owner dashboard) */}

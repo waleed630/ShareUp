@@ -182,7 +182,7 @@ export default function AddItem() {
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Price / Day (₹) <span className="required">*</span></label>
+                <label className="form-label">Price / Day (PKR) <span className="required">*</span></label>
                 <input
                   name="price"
                   type="number"
@@ -197,7 +197,7 @@ export default function AddItem() {
             {/* Pickup Address */}
             <div className="form-group" style={{ marginTop: 18 }}>
               <label className="form-label">Pickup Address <span className="required">*</span></label>
-              <input name="pickupAddress" placeholder="e.g. Sector 18, Noida, UP" required className="form-input" />
+              <input name="pickupAddress" placeholder="e.g. Block B, Gulberg, Lahore" required className="form-input" />
             </div>
 
             {/* Image Upload */}

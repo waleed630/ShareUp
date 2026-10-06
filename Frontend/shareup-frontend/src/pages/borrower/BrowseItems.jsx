@@ -11,7 +11,7 @@ const today = new Date().toISOString().split('T')[0]
 
 const formatDate = iso => {
   if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 export default function BrowseItems() {
@@ -238,7 +238,7 @@ export default function BrowseItems() {
                       alt={item.name}
                       onError={e => (e.currentTarget.src = '/placeholder.png')}
                     />
-                    <span className="item-card-price">₹{item.price}/day</span>
+                    <span className="item-card-price">PKR {item.price}/day</span>
                     {item.category && <span className="item-card-cat">{item.category}</span>}
                   </div>
                   <div className="item-card-body">
@@ -246,7 +246,7 @@ export default function BrowseItems() {
                     <div className="item-desc">{item.description}</div>
                     <div className="item-footer">
                       <div className="item-price">
-                        ₹{item.price} <span>/ day</span>
+                        PKR {item.price} <span>/ day</span>
                       </div>
                       <div className="item-btns">
                         <button className="btn-view" onClick={() => navigate(`/borrower/items/${id}`)}>
@@ -282,7 +282,7 @@ export default function BrowseItems() {
           <div className="modal-box">
             <div className="modal-title">Select Rental Dates</div>
             <div className="modal-sub">
-              Requesting: <strong>{dateModal.name}</strong> · ₹{dateModal.price}/day
+              Requesting: <strong>{dateModal.name}</strong> · PKR {dateModal.price}/day
             </div>
 
             <div className="date-row">
@@ -301,7 +301,7 @@ export default function BrowseItems() {
               <div style={{ background: '#fef3ec', border: '1px solid #fbd5bf', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: '0.85rem', color: '#7c3b1a' }}>
                 📅 {Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24))} days
                 &nbsp;·&nbsp;
-                Total: <strong>₹{Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) * dateModal.price}</strong>
+                Total: <strong>PKR {Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) * dateModal.price}</strong>
               </div>
             )}
 
