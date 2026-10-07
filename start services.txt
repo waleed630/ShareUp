@@ -1,0 +1,13 @@
+Sab ek sath	 
+\start-all.ps1	    
+
+Sirf auth-service (login, register)               
+.\start-all.ps1 auth     
+
+Sirf item-service (items, images)	              
+.\start-all.ps1 item   
+
+Sirf rental-service (requests, returns, ratings)	.\start-all.ps1 rental    
+	
+Sirf frontend (React) 
+.\start-all.ps1 frontend             
