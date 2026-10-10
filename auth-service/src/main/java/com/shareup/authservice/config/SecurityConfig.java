@@ -2,12 +2,13 @@ package com.shareup.authservice.config;
 
 import com.shareup.authservice.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.*;
-import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.*;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.*;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.*;
 
@@ -29,6 +30,10 @@ public class SecurityConfig {
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
+            // Missing or expired token -> 401, so the frontend can send the user back to login
+            .exceptionHandling(ex ->
+                ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+            )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                         "/api/auth/register",
@@ -36,11 +41,9 @@ public class SecurityConfig {
                         "/api/auth/validate",
                         "/api/auth/health"
                 ).permitAll()
-                .requestMatchers("/api/profile/**").authenticated()
-                   // Internal service-to-service calls only — NOT public
-                //  Allow internal service-to-service calls (rental-service fetches user data)
-                // These calls come from backend — no JWT, but protected by network/deploy config
-                .requestMatchers(HttpMethod.GET, "/api/users/**").permitAll()
+                .requestMatchers("/api/profile/**").hasAnyRole("OWNER", "BORROWER")
+                // Internal: rental-service looks up contact details with a service token
+                .requestMatchers("/api/users/**").hasRole(JwtAuthenticationFilter.SERVICE_ROLE)
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
