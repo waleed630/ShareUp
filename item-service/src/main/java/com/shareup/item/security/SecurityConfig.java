@@ -35,7 +35,11 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults())
             .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             // Missing or expired token -> 401, so the frontend can send the user back to login
-            .exceptionHandling(ex -> ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+            // Logged in but wrong role -> a plain 403 (never 401, which the frontend treats as logged out)
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+                .accessDeniedHandler((request, response, denied) -> response.setStatus(HttpStatus.FORBIDDEN.value()))
+            )
 
             .authorizeHttpRequests(auth -> auth
 
