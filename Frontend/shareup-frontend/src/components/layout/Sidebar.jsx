@@ -1,12 +1,13 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import useAuth from '../../hooks/useAuth'
-import { FaBox, FaPlus, FaClipboardList, FaUndo, FaSignOutAlt, FaTimes } from 'react-icons/fa'
+import { FaBox, FaPlus, FaClipboardList, FaUndo, FaStar, FaSignOutAlt, FaTimes } from 'react-icons/fa'
 
 const navItems = [
   { to: '/owner/items',    label: 'My Items',        icon: <FaBox /> },
   { to: '/owner/add',      label: 'Add Item',         icon: <FaPlus /> },
   { to: '/owner/requests', label: 'Rental Requests',  icon: <FaClipboardList /> },
   { to: '/owner/returns',  label: 'Return Approvals', icon: <FaUndo /> },
+  { to: '/owner/ratings',  label: 'My Ratings',       icon: <FaStar /> },
 ]
 
 export default function Sidebar({ onClose, hasPendingRequests = false, hasPendingReturns = false }) {
