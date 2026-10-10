@@ -141,8 +141,10 @@ Orchestrates the full rental lifecycle, ratings, and notifications. Communicates
 | `POST` | `/api/auth/register` | ❌ | Register a new user |
 | `POST` | `/api/auth/login` | ❌ | Login and receive JWT token |
 | `GET` | `/api/auth/health` | ❌ | Health check |
+| `GET` | `/api/auth/validate` | ❌ | Check a token and return its user id, email, role and phone |
 | `GET` | `/api/profile` | ✅ | Get logged-in user's profile |
-| `PUT` | `/api/profile` | ✅ | Update profile details |
+| `PUT` | `/api/profile` | ✅ | Update name, phone and address |
+| `GET` | `/api/users/{id}` | 🔒 | Internal — contact details for rental-service (service token) |
 
 ### 📦 Item Service — `/api/items`
 
@@ -153,8 +155,9 @@ Orchestrates the full rental lifecycle, ratings, and notifications. Communicates
 | `POST` | `/api/items` | ✅ | Owner | List a new item |
 | `POST` | `/api/items/{id}/image` | ✅ | Owner | Upload item image to Cloudinary |
 | `GET` | `/api/items/owner` | ✅ | Owner | Get owner's own item listings |
-| `PUT` | `/api/items/{id}/rented` | ❌ | Internal | Mark item as rented |
-| `PUT` | `/api/items/{id}/available` | ❌ | Internal | Mark item as available again |
+| `DELETE` | `/api/items/{id}` | ✅ | Owner | Delete your own item (not while it is rented) |
+| `PUT` | `/api/items/{id}/rented` | 🔒 | Internal | Mark item as rented (service token) |
+| `PUT` | `/api/items/{id}/available` | 🔒 | Internal | Mark item as available again (service token) |
 
 ### 🔄 Rental Service — `/api/rentals`
 
@@ -172,9 +175,15 @@ Orchestrates the full rental lifecycle, ratings, and notifications. Communicates
 | `GET` | `/api/rentals/ratings/me` | ✅ | Any | Ratings received by the logged-in user |
 | `GET` | `/api/rentals/owner` | ✅ | Owner | Get all rental requests for owner's items |
 | `GET` | `/api/rentals/owner/returns` | ✅ | Owner | Get pending return approvals |
-| `GET` | `/api/rentals/{id}/return-image` | ✅ | Any | View return proof image (redirects to Cloudinary) |
+| `GET` | `/api/rentals/{id}/return-image` | ✅ | Borrower or owner of that rental | View return proof image (redirects to Cloudinary) |
 
 > **Auth header:** `Authorization: Bearer <token>`
+>
+> **Status codes:** `401` means no valid login, `403` means logged in but not allowed.
+>
+> **Internal endpoints (🔒):** rental-service calls these with a short-lived service token that it signs with the shared `JWT_SECRET`. A user token is rejected, so they cannot be called from a browser. No extra configuration is needed beyond the same `JWT_SECRET` on all three services.
+>
+> **Rental requests:** the owner is taken from the item on the server; an `ownerId` in the request body is ignored.
 
 ---
 
@@ -294,7 +303,7 @@ MAIL_PASSWORD=your_app_password
 | `item-service` (8081) | `PORT`, `MONGODB_URI`, `JWT_SECRET`, `CLOUDINARY_*` |
 | `rental-service` (8082) | `PORT`, `MONGODB_URI`, `JWT_SECRET`, `AUTH_SERVICE_URL`, `ITEM_SERVICE_URL`, `CLOUDINARY_*`, `MAIL_USERNAME`, `MAIL_PASSWORD` |
 
-`JWT_SECRET` must be identical in all three services. `start-all.ps1` fills in `PORT`, the service URLs and each service's `MONGODB_URI` from the root `.env`.
+`JWT_SECRET` must be identical in all three services (it also signs the internal service tokens), and all three must be deployed together after a change to how they talk to each other. `start-all.ps1` fills in `PORT`, the service URLs and each service's `MONGODB_URI` from the root `.env`.
 
 ### `Frontend/shareup-frontend/.env`
 
