@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import itemsApi from '../../api/items.api'
 import rentalsApi from '../../api/rentals.api'
@@ -15,11 +15,11 @@ export default function ItemDetails() {
   const [held, setHeld] = useState(null)
   const [pickingDates, setPickingDates] = useState(false)
 
-  const loadHeld = async () => {
+  const loadHeld = useCallback(async () => {
     const res = await rentalsApi.reservations().catch(() => null)
     const list = Array.isArray(res?.data) ? res.data : []
     setHeld(list.find(r => r.itemId === id) || null)
-  }
+  }, [id])
 
   useEffect(() => {
     const load = async () => {
@@ -35,7 +35,7 @@ export default function ItemDetails() {
     }
 
     load()
-  }, [id])
+  }, [id, loadHeld])
 
   const requestRental = async ({ startDate, endDate }) => {
     setPickingDates(false)
@@ -56,7 +56,8 @@ export default function ItemDetails() {
   if (loading) return <p>Loading...</p>
   if (!item) return <p>Item not found</p>
 
- const imageUrl = item.imageUrl || '/placeholder.png'
+  const imageUrl = item.imageUrl || '/placeholder.png'
+  const rented = item.status === 'RENTED'
 
 
   return (
@@ -83,7 +84,7 @@ export default function ItemDetails() {
 
           <div className="space-y-2 text-sm">
             <div>
-              <b>Price:</b> PKR {item.price}
+              <b>Price:</b> PKR {item.price} / day
             </div>
 
             <div>
@@ -105,10 +106,10 @@ export default function ItemDetails() {
 
             <button
               onClick={() => setPickingDates(true)}
-              disabled={!!held}
+              disabled={!!held || rented}
               className="bg-black text-white px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {held?.mine ? 'Requested' : held ? 'Reserved' : 'Request Rental'}
+              {rented ? 'Currently Rented' : held?.mine ? 'Requested' : held ? 'Reserved' : 'Request Rental'}
             </button>
           </div>
 

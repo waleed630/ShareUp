@@ -44,8 +44,8 @@ export default function RentalRequests() {
       toast.success('Request approved')
       // approving one request auto-rejects the others for the same item
       load()
-    } catch {
-      toast.error('Approval failed')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Approval failed')
       load()
     }
     window.dispatchEvent(new Event(RENTALS_CHANGED))
@@ -56,8 +56,8 @@ export default function RentalRequests() {
     try {
       await rentalsApi.reject(id)
       toast.success('Request rejected')
-    } catch {
-      toast.error('Reject failed')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Reject failed')
       load()
     }
     window.dispatchEvent(new Event(RENTALS_CHANGED))
@@ -155,7 +155,7 @@ export default function RentalRequests() {
                 <div className="rr-card-body">
                   {/* Header */}
                   <div className="rr-card-header">
-                    <div className="rr-item-name">{item?.name || r.itemId}</div>
+                    <div className="rr-item-name">{item?.name || 'Item no longer available'}</div>
                     <StatusBadge status={r.status} />
                   </div>
 

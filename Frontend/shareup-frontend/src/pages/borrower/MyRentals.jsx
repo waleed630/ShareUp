@@ -47,6 +47,8 @@ export default function MyRentals({ rated = {}, onRate }) {
     // an approval arrived while this page was open
     window.addEventListener(RENTAL_APPROVED, load)
     return () => window.removeEventListener(RENTAL_APPROVED, load)
+    // load once on mount; the listener keeps the first render's load, which only needs the user id
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const sendReturnRequest = async rentalId => {
@@ -58,8 +60,8 @@ export default function MyRentals({ rated = {}, onRate }) {
     try {
       await rentalsApi.returnItem(rentalId, file)
       toast.success('Return request sent!')
-    } catch {
-      toast.error('Failed to send return request')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send return request')
       load()
     }
   }
@@ -70,8 +72,8 @@ export default function MyRentals({ rated = {}, onRate }) {
     try {
       await rentalsApi.cancel(rentalId)
       toast.success('Rental cancelled')
-    } catch {
-      toast.error('Failed to cancel rental')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to cancel rental')
       load()
     } finally {
       setCancelling(null)
@@ -160,7 +162,7 @@ export default function MyRentals({ rated = {}, onRate }) {
 
                 {/* Header */}
                 <div className="rental-card-header">
-                  <div className="rental-item-name">{item?.name || 'Loading...'}</div>
+                  <div className="rental-item-name">{item?.name || 'Item no longer available'}</div>
                   <StatusBadge status={r.status} />
                 </div>
 

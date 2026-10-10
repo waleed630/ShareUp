@@ -40,8 +40,8 @@ export default function ReturnApprovals() {
     try {
       await rentalsApi.approveReturn(id)
       toast.success('Return approved!')
-    } catch {
-      toast.error('Approval failed')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Approval failed')
       load()
     }
     window.dispatchEvent(new Event(RENTALS_CHANGED))
@@ -152,7 +152,7 @@ export default function ReturnApprovals() {
                 <div className="ra-body">
                   {/* Header */}
                   <div className="ra-header">
-                    <div className="ra-item-name">{item?.name || r.itemId}</div>
+                    <div className="ra-item-name">{item?.name || 'Item no longer available'}</div>
                     <span className="ra-badge">Return Pending</span>
                   </div>
 
