@@ -191,8 +191,9 @@ public class RentalController {
     // ================= RETURN IMAGE =================
 
     @GetMapping("/{id}/return-image")
-    public ResponseEntity<?> getReturnImage(@PathVariable String id) {
-        RentalRequest rental = rentalService.getById(id);
+    public ResponseEntity<?> getReturnImage(@PathVariable String id, Authentication authentication) {
+        if (authentication == null) return ResponseEntity.status(401).build();
+        RentalRequest rental = rentalService.getForParticipant(id, userId(authentication));
         if (rental.getReturnImageUrl() == null) return ResponseEntity.notFound().build();
         return ResponseEntity.status(302).header("Location", rental.getReturnImageUrl()).build();
     }

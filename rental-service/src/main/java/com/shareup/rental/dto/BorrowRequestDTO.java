@@ -19,7 +19,7 @@ public class BorrowRequestDTO {
     @NotBlank(message = "itemId is required")
     private String itemId;
 
-    @NotNull(message = "ownerId is required")
+    // Ignored: the owner is always read from the item itself
     private Long ownerId;
 
     @NotNull(message = "startDate is required")

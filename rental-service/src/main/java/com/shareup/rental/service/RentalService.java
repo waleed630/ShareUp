@@ -16,6 +16,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -71,7 +73,19 @@ public class RentalService {
         // Validate dates
         if (dto.getEndDate() != null && dto.getStartDate() != null
                 && !dto.getEndDate().isAfter(dto.getStartDate())) {
-            throw new RuntimeException("endDate must be after startDate");
+            throw new RuntimeException("Invalid dates: endDate must be after startDate");
+        }
+
+        // The owner is read from the item itself — never trusted from the client
+        ItemResponse item = requireItem(dto.getItemId());
+        if (item.getOwnerId() == null) {
+            throw new RuntimeException("Invalid item data (owner missing)");
+        }
+        if (item.getOwnerId().equals(borrowerId)) {
+            throw new RuntimeException("You cannot rent your own item");
+        }
+        if (item.getStatus() != null && !"AVAILABLE".equals(item.getStatus())) {
+            throw new RuntimeException("This item is already rented");
         }
 
         // An item with a pending request is reserved until the owner approves or rejects it
@@ -96,7 +110,7 @@ public class RentalService {
 
         RentalRequest request = new RentalRequest();
         request.setItemId(dto.getItemId());
-        request.setOwnerId(dto.getOwnerId());
+        request.setOwnerId(item.getOwnerId());
         request.setBorrowerId(borrowerId);
         request.setStartDate(dto.getStartDate());
         request.setEndDate(dto.getEndDate());
@@ -112,7 +126,7 @@ public class RentalService {
 
         // Notify owner
         try {
-            sendOwnerNewRequestEmail(saved);
+            sendOwnerNewRequestEmail(saved, item);
         } catch (Exception e) {
             log.warn("Failed to send new-request email rentalId={}: {}", saved.getId(), e.getMessage());
         }
@@ -124,59 +138,72 @@ public class RentalService {
     // ================= APPROVE REQUEST ==========================
     // ============================================================
 
-   public RentalRequest approveRequest(String rentalId,
-                                    Long ownerId,
-                                    String ignoredPhone,
-                                    String ignoredPickupAddress) {
+    public RentalRequest approveRequest(String rentalId,
+                                        Long ownerId,
+                                        String ignoredPhone,
+                                        String ignoredPickupAddress) {
 
-    RentalRequest req = rentalRepository.findById(rentalId)
-            .orElseThrow(() -> new RuntimeException("Rental not found: " + rentalId));
+        RentalRequest req = rentalRepository.findById(rentalId)
+                .orElseThrow(() -> new RuntimeException("Rental not found: " + rentalId));
 
-    if (!ownerId.equals(req.getOwnerId())) {
-        throw new RuntimeException("Unauthorized");
-    }
-
-    ItemResponse item = fetchItem(req.getItemId());
-    Map owner = fetchUser(ownerId);
-
-    if (item != null) req.setPickupAddress(item.getPickupAddress());
-    if (owner != null) req.setOwnerPhone((String) owner.get("phone"));
-
-    req.setStatus(RentalStatus.APPROVED);
-    req.setApprovedAt(LocalDateTime.now());
-
-    RentalRequest approved = rentalRepository.save(req);
-    // Auto reject other pending requests for the same item
-    List<RentalRequest> otherRequests =
-        rentalRepository.findByItemIdAndStatus(req.getItemId(), RentalStatus.PENDING);
-
-    for (RentalRequest other : otherRequests) {
-         if (!other.getId().equals(req.getId())) {
-
-        other.setStatus(RentalStatus.REJECTED);
-        rentalRepository.save(other);
-
-        log.info("Auto rejected competing request id={} itemId={}", other.getId(), req.getItemId());
-
-        try {
-            sendBorrowerRejectedEmail(other);
-        } catch (Exception e) {
-            log.warn("Failed to send rejection email rentalId={}", other.getId());
+        if (!ownerId.equals(req.getOwnerId())) {
+            throw new RuntimeException("Unauthorized");
         }
-    }
-}
-    // 🔹 UPDATE ITEM STATUS
-    try {
-        restTemplate.put(
-            itemServiceUrl + "/api/items/" + req.getItemId() + "/rented",
-            null
-        );
-    } catch (Exception e) {
-        log.warn("Failed to update item status to RENTED itemId={}", req.getItemId());
+
+        if (req.getStatus() != RentalStatus.PENDING) {
+            throw new RuntimeException("Cannot approve a request that is already " + req.getStatus());
+        }
+
+        ItemResponse item = fetchItem(req.getItemId());
+        Map owner = fetchUser(ownerId);
+
+        if (item != null) req.setPickupAddress(item.getPickupAddress());
+        if (owner != null) req.setOwnerPhone((String) owner.get("phone"));
+
+        req.setStatus(RentalStatus.APPROVED);
+        req.setApprovedAt(LocalDateTime.now());
+
+        RentalRequest approved = rentalRepository.save(req);
+        log.info("Rental approved id={} ownerId={}", rentalId, ownerId);
+
+        // Tell the borrower where to pick the item up
+        try {
+            sendBorrowerApprovedEmail(approved, item);
+        } catch (Exception e) {
+            log.warn("Failed to send approval email rentalId={}: {}", rentalId, e.getMessage());
+        }
+
+        // Auto reject other pending requests for the same item
+        List<RentalRequest> otherRequests =
+                rentalRepository.findByItemIdAndStatus(req.getItemId(), RentalStatus.PENDING);
+
+        for (RentalRequest other : otherRequests) {
+
+            if (!other.getId().equals(req.getId())) {
+
+                other.setStatus(RentalStatus.REJECTED);
+                rentalRepository.save(other);
+
+                log.info("Auto rejected competing request id={} itemId={}", other.getId(), req.getItemId());
+
+                try {
+                    sendBorrowerRejectedEmail(other);
+                } catch (Exception e) {
+                    log.warn("Failed to send rejection email rentalId={}", other.getId());
+                }
+            }
+        }
+
+        // UPDATE ITEM STATUS
+        try {
+            restTemplate.put(itemServiceUrl + "/api/items/{id}/rented", null, req.getItemId());
+        } catch (Exception e) {
+            log.warn("Failed to update item status to RENTED itemId={}: {}", req.getItemId(), e.getMessage());
+        }
+
+        return approved;
     }
 
-    return approved;
-}
     // ============================================================
     // ================= REJECT REQUEST ===========================
     // ============================================================
@@ -188,6 +215,10 @@ public class RentalService {
 
         if (!ownerId.equals(req.getOwnerId())) {
             throw new RuntimeException("Unauthorized");
+        }
+
+        if (req.getStatus() != RentalStatus.PENDING) {
+            throw new RuntimeException("Cannot reject a request that is already " + req.getStatus());
         }
 
         req.setStatus(RentalStatus.REJECTED);
@@ -246,6 +277,14 @@ public class RentalService {
             throw new RuntimeException("Cannot return a rental that is not APPROVED");
         }
 
+        if (image == null || image.isEmpty()) {
+            throw new RuntimeException("Invalid image: the file is empty");
+        }
+        String contentType = image.getContentType();
+        if (contentType == null || !contentType.toLowerCase().startsWith("image/")) {
+            throw new RuntimeException("Invalid image: only image files are allowed");
+        }
+
         String imageUrl = uploadToCloudinary(image);
         req.setReturnImageUrl(imageUrl);
         req.setReturnRequestedAt(LocalDateTime.now());
@@ -261,30 +300,32 @@ public class RentalService {
 
     public RentalRequest approveReturn(String rentalId, Long ownerId) {
 
-    RentalRequest req = rentalRepository.findById(rentalId)
-            .orElseThrow(() -> new RuntimeException("Rental not found: " + rentalId));
+        RentalRequest req = rentalRepository.findById(rentalId)
+                .orElseThrow(() -> new RuntimeException("Rental not found: " + rentalId));
 
-    if (!ownerId.equals(req.getOwnerId())) {
-        throw new RuntimeException("Unauthorized");
+        if (!ownerId.equals(req.getOwnerId())) {
+            throw new RuntimeException("Unauthorized");
+        }
+
+        if (req.getStatus() != RentalStatus.RETURN_REQUESTED) {
+            throw new RuntimeException("Cannot approve a return that has not been requested");
+        }
+
+        req.setStatus(RentalStatus.RETURN_APPROVED);
+        req.setReturnApprovedAt(LocalDateTime.now());
+
+        RentalRequest saved = rentalRepository.save(req);
+        log.info("Return approved id={} ownerId={}", rentalId, ownerId);
+
+        // UPDATE ITEM STATUS BACK TO AVAILABLE
+        try {
+            restTemplate.put(itemServiceUrl + "/api/items/{id}/available", null, req.getItemId());
+        } catch (Exception e) {
+            log.warn("Failed to update item status to AVAILABLE itemId={}: {}", req.getItemId(), e.getMessage());
+        }
+
+        return saved;
     }
-
-    req.setStatus(RentalStatus.RETURN_APPROVED);
-    req.setReturnApprovedAt(LocalDateTime.now());
-
-    RentalRequest saved = rentalRepository.save(req);
-
-    // 🔹 UPDATE ITEM STATUS BACK TO AVAILABLE
-    try {
-        restTemplate.put(
-            itemServiceUrl + "/api/items/" + req.getItemId() + "/available",
-            null
-        );
-    } catch (Exception e) {
-        log.warn("Failed to update item status to AVAILABLE itemId={}", req.getItemId());
-    }
-
-    return saved;
-}
 
     // ============================================================
     // ================= INTERNAL HELPERS =========================
@@ -293,7 +334,7 @@ public class RentalService {
     private Map fetchUser(Long userId) {
         try {
             return restTemplate.getForObject(
-                    authServiceUrl + "/api/users/" + userId, Map.class);
+                    authServiceUrl + "/api/users/{id}", Map.class, userId);
         } catch (Exception e) {
             log.warn("Auth service unreachable userId={}: {}", userId, e.getMessage());
             return null;
@@ -303,10 +344,27 @@ public class RentalService {
     private ItemResponse fetchItem(String itemId) {
         try {
             return restTemplate.getForObject(
-                    itemServiceUrl + "/api/items/" + itemId, ItemResponse.class);
+                    itemServiceUrl + "/api/items/{id}", ItemResponse.class, itemId);
         } catch (Exception e) {
             log.warn("Item service unreachable itemId={}: {}", itemId, e.getMessage());
             return null;
+        }
+    }
+
+    // Like fetchItem, but for flows that cannot continue without the item
+    private ItemResponse requireItem(String itemId) {
+        try {
+            ItemResponse item = restTemplate.getForObject(
+                    itemServiceUrl + "/api/items/{id}", ItemResponse.class, itemId);
+            if (item == null) {
+                throw new RuntimeException("Item not found");
+            }
+            return item;
+        } catch (HttpClientErrorException.NotFound e) {
+            throw new RuntimeException("Item not found");
+        } catch (RestClientException e) {
+            log.warn("Item service unreachable itemId={}: {}", itemId, e.getMessage());
+            throw new RuntimeException("Cannot check this item right now. Please try again.");
         }
     }
 
@@ -331,9 +389,8 @@ public class RentalService {
     // ================= EMAILS ===================================
     // ============================================================
 
-    private void sendOwnerNewRequestEmail(RentalRequest req) {
-        Map owner         = fetchUser(req.getOwnerId());
-        ItemResponse item = fetchItem(req.getItemId());
+    private void sendOwnerNewRequestEmail(RentalRequest req, ItemResponse item) {
+        Map owner = fetchUser(req.getOwnerId());
         if (owner == null || item == null) return;
 
         String body = String.format(
@@ -428,6 +485,15 @@ public class RentalService {
     public RentalRequest getById(String id) {
         return rentalRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Rental not found: " + id));
+    }
+
+    // A rental is only visible to its borrower and its owner
+    public RentalRequest getForParticipant(String id, Long userId) {
+        RentalRequest req = getById(id);
+        if (!userId.equals(req.getBorrowerId()) && !userId.equals(req.getOwnerId())) {
+            throw new RuntimeException("Unauthorized");
+        }
+        return req;
     }
 
     // ============================================================
