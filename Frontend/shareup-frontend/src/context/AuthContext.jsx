@@ -1,38 +1,29 @@
-import { createContext, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import authApi from '../api/auth.api'
-
-export const AuthContext = createContext()
+import { AuthContext } from './auth'
+import { saveSession, readSession, clearSession } from '../utils/session'
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
-    const role = localStorage.getItem('role')
-    const userId = localStorage.getItem('userId')
-
-    if (token && role && userId) {
-      setUser({ token, role, userId })
-    }
-
+    setUser(readSession())
     setLoading(false)
   }, [])
 
   const login = async data => {
     const res = await authApi.login(data)
-    const { token, role, userId } = res.data
+    const { token, role, userId, email } = res.data
 
-    localStorage.setItem('token', token)
-    localStorage.setItem('role', role)
-    localStorage.setItem('userId', userId)
+    saveSession({ token, role, userId, email })
 
-    setUser({ token, role, userId })
+    setUser({ token, role, userId, email })
     return role
   }
 
   const logout = () => {
-    localStorage.clear()
+    clearSession()
     setUser(null)
   }
 
