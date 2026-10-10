@@ -27,13 +27,26 @@ public class ItemService {
     // ---------- CREATE ITEM (OWNER ONLY) ----------
     public Item createItem(Long ownerId, ItemRequestDTO dto) {
 
+        if (isBlank(dto.getName())) {
+            throw new RuntimeException("Invalid item: name is required");
+        }
+        if (isBlank(dto.getCategory())) {
+            throw new RuntimeException("Invalid item: category is required");
+        }
+        if (isBlank(dto.getPickupAddress())) {
+            throw new RuntimeException("Invalid item: pickup address is required");
+        }
+        if (Double.isNaN(dto.getPrice()) || Double.isInfinite(dto.getPrice()) || dto.getPrice() <= 0) {
+            throw new RuntimeException("Invalid item: price must be greater than 0");
+        }
+
         Item item = new Item();
-        item.setName(dto.getName());
-        item.setDescription(dto.getDescription());
-        item.setCategory(dto.getCategory());
+        item.setName(dto.getName().trim());
+        item.setDescription(dto.getDescription() != null ? dto.getDescription().trim() : null);
+        item.setCategory(dto.getCategory().trim());
         item.setPrice(dto.getPrice());
         item.setOwnerId(ownerId);
-        item.setPickupAddress(dto.getPickupAddress());
+        item.setPickupAddress(dto.getPickupAddress().trim());
         item.setStatus(ItemStatus.AVAILABLE);
 
         return itemRepository.save(item);
@@ -42,15 +55,24 @@ public class ItemService {
     // ---------- UPLOAD IMAGE (OWNER ONLY) ----------
     public String uploadImage(String itemId, MultipartFile file, Long ownerId) {
 
+        Item item = itemRepository.findById(itemId)
+                .orElseThrow(() -> new RuntimeException("Item not found"));
+
+        // ownership validation
+        if (!ownerId.equals(item.getOwnerId())) {
+            throw new AccessDeniedException("You are not the owner of this item");
+        }
+
+        if (file == null || file.isEmpty()) {
+            throw new RuntimeException("Invalid image: the file is empty");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.toLowerCase().startsWith("image/")) {
+            throw new RuntimeException("Invalid image: only image files are allowed");
+        }
+
+        String imageUrl;
         try {
-            Item item = itemRepository.findById(itemId)
-                    .orElseThrow(() -> new RuntimeException("Item not found"));
-
-            // ownership validation
-            if (!item.getOwnerId().equals(ownerId)) {
-                throw new AccessDeniedException("You are not the owner of this item");
-            }
-
             // Upload to Cloudinary
             Map uploadResult = cloudinary.uploader().upload(
                     file.getBytes(),
@@ -58,17 +80,15 @@ public class ItemService {
                             "folder", "shareup-items"
                     )
             );
-
-            String imageUrl = uploadResult.get("secure_url").toString();
-
-            item.setImageUrl(imageUrl);
-            itemRepository.save(item);
-
-            return imageUrl;
-
+            imageUrl = uploadResult.get("secure_url").toString();
         } catch (Exception e) {
             throw new RuntimeException("Image upload failed", e);
         }
+
+        item.setImageUrl(imageUrl);
+        itemRepository.save(item);
+
+        return imageUrl;
     }
 
     // ---------- PUBLIC BROWSE ----------
@@ -128,10 +148,19 @@ public class ItemService {
         Item item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new RuntimeException("Item not found"));
 
-        if (!item.getOwnerId().equals(ownerId)) {
+        if (!ownerId.equals(item.getOwnerId())) {
             throw new AccessDeniedException("You are not allowed to delete this item");
         }
 
+        // The borrower still has it — the rental has to be completed first
+        if (item.getStatus() == ItemStatus.RENTED) {
+            throw new RuntimeException("Cannot delete an item that is currently rented");
+        }
+
         itemRepository.delete(item);
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 }
