@@ -34,6 +34,9 @@ public class ProfileServiceImpl implements ProfileService {
 
         user.setName(request.getName());
         user.setPhone(request.getPhone());
+        if (request.getAddress() != null) {
+            user.setAddress(request.getAddress());
+        }
 
         User updated = userRepository.save(user);
 
@@ -46,7 +49,8 @@ public class ProfileServiceImpl implements ProfileService {
                 user.getName(),
                 user.getEmail(),
                 user.getRole().name(),
-                user.getPhone()
+                user.getPhone(),
+                user.getAddress()
         );
     }
 }

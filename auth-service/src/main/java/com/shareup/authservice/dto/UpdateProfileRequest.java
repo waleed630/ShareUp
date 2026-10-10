@@ -8,7 +8,7 @@ public class UpdateProfileRequest {
     private String name;
 
     private String phone;
-    private String pickupAddress;
+    private String address;
 
     // getters & setters
     public String getName() { return name; }
@@ -17,6 +17,6 @@ public class UpdateProfileRequest {
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
 
-    public String getPickupAddress() { return pickupAddress; }
-    public void setPickupAddress(String pickupAddress) { this.pickupAddress = pickupAddress; }
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
 }

@@ -19,6 +19,6 @@ public class TokenValidationResponse {
     public Long getUserId() { return userId; }
     public String getEmail() { return email; }
     public String getRole() { return role; }
-    public String getphone() { return phone; }
+    public String getPhone() { return phone; }
     
 }
