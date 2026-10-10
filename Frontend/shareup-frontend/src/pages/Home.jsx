@@ -3,8 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import itemsApi from '../api/items.api'
 import Loader from '../components/layout/Loader'
 import toast from 'react-hot-toast'
-
-const CATEGORIES = ['All', 'Electronics', 'Furniture', 'Kitchen Appliances', 'Gaming', 'Sports', 'Tools', 'Events', 'Outdoor', 'Vehicles', 'Books', 'Other']
+import { CATEGORY_FILTERS } from '../constants/categories'
 
 const FEATURES = [
   { icon: '💸', title: 'Save Money',     desc: 'Rent instead of buying expensive items you rarely use.' },
@@ -297,7 +296,7 @@ export default function Home() {
 
           {/* Pills */}
           <div className="pills">
-            {CATEGORIES.map(cat => (
+            {CATEGORY_FILTERS.map(cat => (
               <button
                 key={cat}
                 className={`pill ${category === cat ? 'active' : ''}`}

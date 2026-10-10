@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import itemsApi from '../../api/items.api'
 import toast from 'react-hot-toast'
-
-const CATEGORIES = ['All', 'Electronics', 'Furniture', 'Kitchen Appliances', 'Gaming', 'Sports', 'Tools', 'Events', 'Outdoor', 'Vehicles', 'Books', 'Other']
+import { CATEGORIES } from '../../constants/categories'
 
 export default function AddItem() {
   const [loading, setLoading] = useState(false)
@@ -10,9 +9,9 @@ export default function AddItem() {
 
   const handleImageChange = e => {
     const file = e.target.files[0]
-    if (file) {
-      setImagePreview(URL.createObjectURL(file))
-    }
+    // free the previous preview before replacing it
+    if (imagePreview) URL.revokeObjectURL(imagePreview)
+    setImagePreview(file ? URL.createObjectURL(file) : null)
   }
 
   const submit = async e => {
@@ -20,30 +19,47 @@ export default function AddItem() {
     const form = e.target
 
     const data = {
-      name:          form.name.value,
-      description:   form.description.value,
+      name:          form.name.value.trim(),
+      description:   form.description.value.trim(),
       category:      form.category.value,
       price:         parseFloat(form.price.value),
-      pickupAddress: form.pickupAddress.value,
+      pickupAddress: form.pickupAddress.value.trim(),
     }
 
     const image = form.image.files[0]
 
+    setLoading(true)
     try {
-      setLoading(true)
-      const res = await itemsApi.createItem(data)
-      const itemId = res.data.id
-
-      if (image) {
-        await itemsApi.uploadImage(itemId, image)
+      let itemId
+      try {
+        const res = await itemsApi.createItem(data)
+        itemId = res.data.id
+      } catch (err) {
+        console.error(err)
+        toast.error(err.response?.data?.message || 'Failed to add item')
+        return
       }
 
-      toast.success('Item listed successfully!')
+      // The item exists from here on, so a failed photo must not look like a failed listing
+      // (retrying the form would list the item twice)
+      let photoFailed = false
+      if (image) {
+        try {
+          await itemsApi.uploadImage(itemId, image)
+        } catch (err) {
+          console.error(err)
+          photoFailed = true
+        }
+      }
+
+      if (photoFailed) {
+        toast.error('Item listed, but the photo could not be uploaded.')
+      } else {
+        toast.success('Item listed successfully!')
+      }
       form.reset()
+      if (imagePreview) URL.revokeObjectURL(imagePreview)
       setImagePreview(null)
-    } catch (err) {
-      console.error(err)
-      toast.error('Failed to add item')
     } finally {
       setLoading(false)
     }

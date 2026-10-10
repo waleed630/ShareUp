@@ -28,9 +28,6 @@ export default function MyItems() {
   // 🔹 DELETE ITEM
   const handleDelete = async (id) => {
 
-    const confirmDelete = window.confirm("Delete this item?")
-    if (!confirmDelete) return
-
     try {
 
       await itemsApi.deleteItem(id)
@@ -42,7 +39,7 @@ export default function MyItems() {
 
     } catch (err) {
       console.error(err)
-      toast.error("Failed to delete item")
+      toast.error(err.response?.data?.message || "Failed to delete item")
     }
   }
 

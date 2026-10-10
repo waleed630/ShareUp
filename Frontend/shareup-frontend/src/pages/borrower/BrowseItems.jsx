@@ -5,8 +5,7 @@ import rentalsApi from '../../api/rentals.api'
 import toast from 'react-hot-toast'
 import Empty from '../../components/ui/Empty'
 import RentalDatesModal from '../../components/common/RentalDatesModal'
-
-const CATEGORIES = ['All', 'Electronics', 'Furniture', 'Kitchen Appliances', 'Gaming', 'Sports', 'Tools', 'Events', 'Outdoor', 'Vehicles', 'Books', 'Other']
+import { CATEGORY_FILTERS } from '../../constants/categories'
 
 const formatDate = iso => {
   if (!iso) return '—'
@@ -164,7 +163,7 @@ export default function BrowseItems() {
 
         {/* Category pills */}
         <div className="cat-pills">
-          {CATEGORIES.map(cat => (
+          {CATEGORY_FILTERS.map(cat => (
             <button
               key={cat}
               className={`cat-pill ${category === cat ? 'active' : ''}`}
