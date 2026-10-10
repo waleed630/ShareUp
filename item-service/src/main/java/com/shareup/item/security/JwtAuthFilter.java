@@ -17,6 +17,9 @@ import java.util.List;
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
+    // Role carried by tokens that rental-service signs for its own calls
+    public static final String SERVICE_ROLE = "SERVICE";
+
     private final JwtUtil jwtUtil;
 
     public JwtAuthFilter(JwtUtil jwtUtil) {
@@ -48,9 +51,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         Long userId = jwtUtil.extractUserId(token);
         String role = jwtUtil.extractRole(token);
 
+        // A user token without a user id cannot be trusted
+        if (role == null || (userId == null && !SERVICE_ROLE.equals(role))) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(
-                        userId,   // store as Long
+                        userId != null ? userId : "service",
                         null,
                         List.of(new SimpleGrantedAuthority("ROLE_" + role))
                 );
