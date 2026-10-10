@@ -61,6 +61,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String phone  = jwtUtil.extractPhone(token);   //  from JWT claim
         String email  = jwtUtil.extractEmail(token);   //  from JWT claim
 
+        // Only user tokens are accepted here — service tokens carry no user
+        if (userId == null || role == null || JwtUtil.SERVICE_ROLE.equals(role)) {
+            log.warn("Token without a user on request to {}", request.getRequestURI());
+            SecurityContextHolder.clearContext();
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
+        }
+
         String authority = "ROLE_" + role;
         log.debug("Authenticated userId={} role={}", userId, role);
  

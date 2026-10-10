@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
+import java.util.Date;
 import java.util.function.Function;
 
 @Component
@@ -19,6 +20,26 @@ public class JwtUtil {
 
     public JwtUtil(@Value("${jwt.secret}") String secret) {
         this.signingKey = Keys.hmacShaKeyFor(secret.getBytes());
+    }
+
+    // Role carried by the tokens this service signs for its own calls
+    public static final String SERVICE_ROLE = "SERVICE";
+
+    private static final long SERVICE_TOKEN_TTL_MS = 5 * 60 * 1000;
+
+    /**
+     * Short-lived token for calls to auth-service and item-service.
+     * It is signed with the shared secret, so only a ShareUp service can produce one.
+     */
+    public String generateServiceToken() {
+        Date now = new Date();
+        return Jwts.builder()
+                .setSubject("rental-service")
+                .claim("role", SERVICE_ROLE)
+                .setIssuedAt(now)
+                .setExpiration(new Date(now.getTime() + SERVICE_TOKEN_TTL_MS))
+                .signWith(signingKey, SignatureAlgorithm.HS256)
+                .compact();
     }
 
     public boolean validateToken(String token) {
@@ -33,7 +54,7 @@ public class JwtUtil {
 
     public Long extractUserId(String token) {
         Object userId = extractAllClaims(token).get("userId");
-        return Long.valueOf(userId.toString());
+        return userId != null ? Long.valueOf(userId.toString()) : null;
     }
 
     public String extractRole(String token) {
